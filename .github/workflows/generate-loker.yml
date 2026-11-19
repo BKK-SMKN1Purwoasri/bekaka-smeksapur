@@ -1,0 +1,58 @@
+name: Generate Loker Smart BKK
+
+on:
+  schedule:
+    # Berjalan otomatis setiap 2 jam (00:00, 02:00, ..., 22:00 UTC)
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      jumlah_portal:
+        description: "Jumlah sumber portal yang diproses per run (1 - 15)"
+        required: false
+        default: "6"
+      loker_per_portal:
+        description: "Jumlah lowongan yang digenerate per portal (1 - 5)"
+        required: false
+        default: "3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: generate-loker-smart-bkk
+  cancel-in-progress: false
+
+jobs:
+  generate-loker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+
+      - name: Install dependencies (jika ada package.json)
+        run: |
+          if [ -f package.json ]; then
+            if [ -f package-lock.json ]; then
+              npm ci
+            else
+              npm install
+            fi
+          fi
+
+      - name: Jalankan generator lowongan kerja
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GAS_WEBAPP_URL: ${{ secrets.GAS_WEBAPP_URL }}
+          GAS_SECRET: ${{ secrets.GAS_SECRET }}
+          JUMLAH_PORTAL: ${{ github.event.inputs.jumlah_portal || '6' }}
+          LOKER_PER_PORTAL: ${{ github.event.inputs.loker_per_portal || '3' }}
+        run: node scripts/generate_loker.mjs
