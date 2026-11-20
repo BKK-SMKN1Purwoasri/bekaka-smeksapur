@@ -23,6 +23,12 @@ const DAFTAR_SUMBER = [
 
 let modelTerpilih = null;
 
+function bukanModelKhusus(namaModel) {
+  const lower = namaModel.toLowerCase();
+  const kataTerlarang = ["tts", "audio", "imagen", "veo", "embedding", "aqa", "live", "native-audio"];
+  return !kataTerlarang.some((kata) => lower.includes(kata));
+}
+
 async function dapatkanDaftarModelAktif() {
   const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(GEMINI_API_KEY)}`;
   const res = await fetch(url);
@@ -37,9 +43,8 @@ async function dapatkanDaftarModelAktif() {
   const tersedia = models
     .filter((m) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes("generateContent"))
     .map((m) => String(m.name || "").replace(/^models\//, ""))
-    .filter(Boolean);
+    .filter((nama) => nama && bukanModelKhusus(nama));
 
-  // Urutkan prioritas: flash terbaru/stabil dulu
   const prioritas = [
     "gemini-2.5-flash",
     "gemini-2.5-flash-lite",
@@ -79,9 +84,9 @@ async function panggilGemini(prompt) {
     ? [modelTerpilih, ...(await dapatkanDaftarModelAktif())]
     : await dapatkanDaftarModelAktif();
 
-  const unikKandidat = [...new Set(daftarKandidat)];
+  const unikKandidat = [...new Set(daftarKandidat)].filter(bukanModelKhusus);
   if (unikKandidat.length === 0) {
-    throw new Error("Tidak ada model Gemini yang mendukung generateContent pada API key ini");
+    throw new Error("Tidak ada model Gemini teks/flash yang tersedia pada API key ini");
   }
 
   let lastErr = null;
@@ -103,7 +108,8 @@ async function panggilGemini(prompt) {
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`Gemini HTTP ${res.status} (${model}): ${errText.slice(0, 200)}`);
+      lastErr = new Error(`Gemini HTTP ${res.status} (${model}): ${errText.slice(0, 180)}`);
+      continue;
     }
 
     const data = await res.json();
@@ -123,7 +129,7 @@ async function panggilGemini(prompt) {
 
 async function run() {
   const modelsAktif = await dapatkanDaftarModelAktif();
-  console.log("Model tersedia (generateContent):", modelsAktif.join(", ") || "(kosong)");
+  console.log("Model teks tersedia:", modelsAktif.join(", ") || "(kosong)");
 
   const offset = Math.floor(Date.now() / 3600000) % DAFTAR_SUMBER.length;
   const batchPortal = [];
