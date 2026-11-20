@@ -2,7 +2,6 @@ name: Generate Loker Smart BKK
 
 on:
   schedule:
-    # Berjalan otomatis setiap 2 jam (00:00, 02:00, ..., 22:00 UTC)
     - cron: "0 */2 * * *"
   workflow_dispatch:
     inputs:
@@ -34,19 +33,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: "**/package-lock.json"
-
-      - name: Install dependencies (jika ada package.json)
-        run: |
-          if [ -f package.json ]; then
-            if [ -f package-lock.json ]; then
-              npm ci
-            else
-              npm install
-            fi
-          fi
+          node-version: "22"
 
       - name: Jalankan generator lowongan kerja
         env:
